@@ -16,16 +16,22 @@
   {
     "xml": "&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=\"0\"/&gt;&lt;mxCell id=\"1\" parent=\"0\"/&gt;&lt;mxCell id=\"2\" parent=\"1\" style=\"text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;fontColor=#2B3440;fontSize=12;\" value=\"Label\" vertex=\"1\"&gt;&lt;mxGeometry height=\"24\" width=\"140\" as=\"geometry\"/&gt;&lt;/mxCell&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;",
     "w": 140,
-    "h": 24
+    "h": 24,
+    "aspect": "fixed",
+    "title": "Label"
   },
   {
     "xml": "&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=\"0\"/&gt;&lt;mxCell id=\"1\" parent=\"0\"/&gt;&lt;mxCell id=\"2\" parent=\"1\" style=\"swimlane;startSize=20;fontSize=10;fontColor=#6B7480;align=left;spacingLeft=6;fillColor=#F2F4F6;swimlaneFillColor=#FFFFFF;strokeColor=#9AA5B1;dashed=1;html=1;childLayout=stackLayout;horizontalStack=1;stackSpacing=8;stackBorder=8;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;\" value=\"flex row\" vertex=\"1\"&gt;&lt;mxGeometry height=\"80\" width=\"400\" as=\"geometry\"/&gt;&lt;/mxCell&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;",
     "w": 400,
-    "h": 80
+    "h": 80,
+    "aspect": "fixed",
+    "title": "Flex Row"
   },
   {
     "xml": "&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=\"0\"/&gt;&lt;mxCell id=\"1\" parent=\"0\"/&gt;&lt;mxCell id=\"2\" parent=\"1\" style=\"swimlane;startSize=20;fontSize=10;fontColor=#6B7480;align=left;spacingLeft=6;fillColor=#F2F4F6;swimlaneFillColor=#FFFFFF;strokeColor=#9AA5B1;dashed=1;html=1;childLayout=stackLayout;horizontalStack=0;stackSpacing=8;stackBorder=8;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;\" value=\"flex row\" vertex=\"1\"&gt;&lt;mxGeometry height=\"240\" width=\"200\" as=\"geometry\"/&gt;&lt;/mxCell&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;",
     "w": 200,
-    "h": 240
+    "h": 240,
+    "aspect": "fixed",
+    "title": "Flex Column"
   }
 ]</mxlibrary>

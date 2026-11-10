@@ -1,10 +1,6 @@
 /**
  * Page Explorer - draw.io plugin
  * Adds a collapsible, searchable tree panel for navigating pages and page groups.
- *
- * Works in: app.diagrams.net (web) or self-hosted draw.io Docker.
- * Does NOT work in: draw.io Desktop, Confluence, Jira.
- *
  * Toggle panel: Ctrl+Shift+E, or Extras > Page Explorer
  */
 Draw.loadPlugin(function (ui) {
@@ -12,10 +8,9 @@ Draw.loadPlugin(function (ui) {
 
     var STORAGE_KEY = 'pageExplorer.state';
     var UNGROUPED = '(Ungrouped)';
-    var PREFIX_SEPARATOR = ' / '; // fallback: "Group / Page" naming
+    var PREFIX_SEPARATOR = ' / ';
 
-    // ---------- Persisted UI state ----------
-    var state = { visible: true, collapsed: {}, left: 70, top: 80, width: 260 };
+    var state = { visible: true, collapsed: {}, left: 70, top: 80, width: 260, dock: 'left' }; // dock: 'left' | 'right' | 'float'
     try {
         var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
         if (saved) { for (var k in saved) { state[k] = saved[k]; } }
@@ -25,7 +20,6 @@ Draw.loadPlugin(function (ui) {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
     }
 
-    // ---------- Page helpers ----------
     function getPageName(page) {
         if (!page) { return 'Unnamed'; }
         if (typeof page.getName === 'function') { return page.getName() || 'Unnamed'; }
@@ -41,7 +35,6 @@ Draw.loadPlugin(function (ui) {
         return null;
     }
 
-    // Build a lookup of group id -> group name if draw.io exposes one
     function getGroupNameLookup() {
         var lookup = {};
         var sources = [ui.pageGroups, ui.groups, ui.currentFile && ui.currentFile.pageGroups];
@@ -58,8 +51,6 @@ Draw.loadPlugin(function (ui) {
         return lookup;
     }
 
-    // Resolve a page's group, checking several possible storage locations,
-    // then falling back to "Group / Page" name prefixes.
     function getPageGroup(page, lookup) {
         var raw = page.group || page.groupId || page.pageGroup || page.groupName ||
             readAttr(page.node, ['group', 'groupId', 'pageGroup', 'groupName']);
@@ -97,7 +88,6 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
-    // ---------- Styles ----------
     var style = document.createElement('style');
     style.textContent = [
         '.pe-panel{position:absolute;z-index:1000;display:flex;flex-direction:column;max-height:75vh;',
@@ -121,11 +111,11 @@ Draw.loadPlugin(function (ui) {
         '  cursor:pointer;padding:4px 6px 4px 26px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
         '.pe-page.pe-active{background:#dbeafe;color:#1d4ed8;font-weight:bold}',
         '.pe-dark .pe-page.pe-active{background:#1e3a5f;color:#93c5fd}',
+        '.pe-docked{border-radius:0;box-shadow:none;border-top:0;border-bottom:0}',
         '.pe-empty{padding:8px;opacity:.6;font-style:italic}'
     ].join('\n');
     document.head.appendChild(style);
 
-    // ---------- Panel ----------
     var panel = document.createElement('div');
     panel.className = 'pe-panel';
     panel.style.left = state.left + 'px';
@@ -148,14 +138,12 @@ Draw.loadPlugin(function (ui) {
         return b;
     }
 
-    var expandAllBtn = iconButton('⊞', 'Expand all', function () { setAllCollapsed(false); });
-    var collapseAllBtn = iconButton('⊟', 'Collapse all', function () { setAllCollapsed(true); });
-    var closeBtn = iconButton('✕', 'Hide (Ctrl+Shift+E)', function () { setVisible(false); });
-
     header.appendChild(title);
-    header.appendChild(expandAllBtn);
-    header.appendChild(collapseAllBtn);
-    header.appendChild(closeBtn);
+    header.appendChild(iconButton('⊞', 'Expand all', function () { setAllCollapsed(false); }));
+    header.appendChild(iconButton('⊟', 'Collapse all', function () { setAllCollapsed(true); }));
+    var dockBtn = iconButton('', '', function () { cycleDock(); });
+    header.appendChild(dockBtn);
+    header.appendChild(iconButton('✕', 'Hide (Ctrl+Shift+E)', function () { setVisible(false); }));
 
     var search = document.createElement('input');
     search.className = 'pe-search';
@@ -163,7 +151,7 @@ Draw.loadPlugin(function (ui) {
     search.placeholder = 'Filter pages...';
     search.addEventListener('input', render);
     search.addEventListener('keydown', function (e) {
-        e.stopPropagation(); // keep draw.io shortcuts from firing while typing
+        e.stopPropagation();
         if (e.key === 'Enter') {
             var first = body.querySelector('.pe-page');
             if (first) { first.click(); }
@@ -178,7 +166,6 @@ Draw.loadPlugin(function (ui) {
     panel.appendChild(body);
     document.body.appendChild(panel);
 
-    // ---------- Rendering ----------
     function setAllCollapsed(value) {
         buildTree().order.forEach(function (g) { state.collapsed[g] = value; });
         saveState();
@@ -192,7 +179,6 @@ Draw.loadPlugin(function (ui) {
         body.innerHTML = '';
         var filter = search.value.trim().toLowerCase();
         var tree = buildTree();
-        var shown = 0;
 
         tree.order.forEach(function (groupName) {
             var items = tree.groups[groupName].filter(function (item) {
@@ -230,7 +216,6 @@ Draw.loadPlugin(function (ui) {
                 pBtn.title = item.label;
                 pBtn.addEventListener('click', function () { openPage(item.page); render(); });
                 body.appendChild(pBtn);
-                shown++;
             });
         });
 
@@ -242,12 +227,12 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
-    // ---------- Visibility ----------
     function setVisible(v) {
         state.visible = v;
         panel.style.display = v ? 'flex' : 'none';
         saveState();
         if (v) { render(); }
+        if (ui.refresh) { ui.refresh(); }
     }
 
     document.addEventListener('keydown', function (e) {
@@ -257,7 +242,6 @@ Draw.loadPlugin(function (ui) {
         }
     });
 
-    // Add Extras > Page Explorer and Extras > Page Explorer: Debug
     ui.actions.addAction('pageExplorerToggle', function () { setVisible(!state.visible); });
     ui.actions.addAction('pageExplorerDebug', function () {
         console.group('Page Explorer debug');
@@ -281,16 +265,91 @@ Draw.loadPlugin(function (ui) {
         extrasMenu.funct = function (menu, parent) {
             oldFunct.apply(this, arguments);
             menu.addSeparator(parent);
-            ui.menus.addMenuItems(menu, ['pageExplorerToggle', 'pageExplorerDebug'], parent);
+            ui.menus.addMenuItems(menu, ['pageExplorerToggle', 'pageExplorerDock', 'pageExplorerDebug'], parent);
         };
     }
+    ui.actions.addAction('pageExplorerDock', function () { cycleDock(); });
+    var dockAction = ui.actions.get('pageExplorerDock');
+    if (dockAction) { dockAction.label = 'Page Explorer: Change Dock (Left / Right / Floating)'; }
     var toggleAction = ui.actions.get('pageExplorerToggle');
     if (toggleAction) { toggleAction.label = 'Page Explorer'; }
     var debugAction = ui.actions.get('pageExplorerDebug');
     if (debugAction) { debugAction.label = 'Page Explorer: Debug Page Data'; }
 
-    // ---------- Dragging ----------
+
+    // ---------- Docking ----------
+    function dockLabel() {
+        return { left: '⇤', right: '⇥', float: '◱' }[state.dock] || '◱';
+    }
+
+    function cycleDock() {
+        var order = ['left', 'right', 'float'];
+        setDock(order[(order.indexOf(state.dock) + 1) % order.length]);
+    }
+
+    function setDock(mode) {
+        state.dock = mode;
+        saveState();
+        ui.refresh();
+    }
+
+    function shiftEl(el, side, amount) {
+        if (!el) { return; }
+        var cur = parseFloat(el.style[side]) || 0;
+        el.style[side] = (cur + amount) + 'px';
+    }
+
+    // Re-run after draw.io lays out its own panels so the canvas makes room for us.
+    function applyLayout() {
+        dockBtn.textContent = dockLabel();
+        dockBtn.title = 'Dock: ' + state.dock + ' (click to change)';
+        var dc = ui.diagramContainer;
+        var docked = state.visible && state.dock !== 'float' && dc;
+
+        panel.classList.toggle('pe-docked', !!docked);
+        header.style.cursor = docked ? 'default' : 'move';
+
+        if (!docked) {
+            panel.style.position = 'absolute';
+            panel.style.left = state.left + 'px';
+            panel.style.top = state.top + 'px';
+            panel.style.width = state.width + 'px';
+            panel.style.height = '';
+            panel.style.maxHeight = '75vh';
+            return;
+        }
+
+        var r = dc.getBoundingClientRect();
+        var w = state.width;
+        panel.style.position = 'fixed';
+        panel.style.top = r.top + 'px';
+        panel.style.height = r.height + 'px';
+        panel.style.maxHeight = 'none';
+        panel.style.width = w + 'px';
+
+        if (state.dock === 'left') {
+            panel.style.left = r.left + 'px';
+            shiftEl(dc, 'left', w);
+            shiftEl(ui.tabContainer, 'left', w);
+        } else {
+            panel.style.left = (r.right - w) + 'px';
+            shiftEl(dc, 'right', w);
+            shiftEl(ui.tabContainer, 'right', w);
+        }
+
+        if (dc.style.width) { dc.style.width = Math.max(100, r.width - w) + 'px'; }
+        if (ui.editor && ui.editor.graph) { ui.editor.graph.sizeDidChange(); }
+    }
+
+    var originalRefresh = ui.refresh;
+    ui.refresh = function () {
+        var result = originalRefresh.apply(ui, arguments);
+        try { applyLayout(); } catch (e) { console.warn('Page Explorer layout:', e); }
+        return result;
+    };
+
     header.addEventListener('mousedown', function (e) {
+        if (state.dock !== 'float') { return; }
         var startX = e.clientX, startY = e.clientY;
         var startLeft = panel.offsetLeft, startTop = panel.offsetTop;
         function move(ev) {
@@ -309,13 +368,10 @@ Draw.loadPlugin(function (ui) {
         e.preventDefault();
     });
 
-    // Remember width after resize
     panel.addEventListener('mouseup', function () {
-        if (panel.offsetWidth !== state.width) { state.width = panel.offsetWidth; saveState(); }
+        if (panel.offsetWidth !== state.width) { state.width = panel.offsetWidth; saveState(); if (state.dock !== 'float') { ui.refresh(); } }
     });
 
-    // ---------- Keep in sync ----------
-    // Lightweight change detection: re-render only when pages, names, groups, or current page change.
     var lastSignature = '';
     function signature() {
         var lookup = getGroupNameLookup();
